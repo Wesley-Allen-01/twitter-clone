@@ -19,7 +19,6 @@ const RegisterPage = () => {
       });
 
       const data = await res.json();
-
       if (res.ok) {
         setMessage('✅ Registered! You can now log in.');
       } else {

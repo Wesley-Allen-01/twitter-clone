@@ -3,7 +3,11 @@ const mongoose = require('mongoose');
 const Post = require('./models/Posts');
 const User = require('./models/Users');
 const bcrypt = require('bcryptjs');
+const cors = require('cors');
 const app = express();
+require('dotenv').config(); // Load environment variables from .env file
+const jwt = require('jsonwebtoken');
+app.use(cors()); 
 const PORT = process.env.PORT || 3000;
 
 mongoose.connect(process.env.MONGO_URI, {
@@ -74,9 +78,11 @@ app.post('/users', async (req, res) => {
             username: username,
             password: hashed_password
         })
+        console.log("Creating new user with username: " + username);
         const savedUser = await newUser.save();
         res.status(201).json(savedUser);
     } catch (err) {
+        console.log("you fucked up")
         res.status(500).json({message: "error creating user", error: err})
     }
 });
@@ -92,11 +98,40 @@ app.post('/login', async (req, res) => {
         if (!validPassword) {
             return res.status(400).json({message: "Invalid username or password"});
         }
-        res.status(200).json({message: "Successfully logged in", userId: user._id});
+
+        // Generate a JWT token
+        const token = jwt.sign(
+            { userId: user._id }, 
+            process.env.JWT_SECRET, 
+            { expiresIn: '1h' } // Token expires in 1 hour
+        );
+
+        res.status(200).json({ token });
     } catch (err) {
         res.status(500).json({message: "error logging in", error: err})
     }
 });
+
+function authenticateToken(req, res, next){
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; 
+    if (token == null) {
+        return res.sendStatus(401).json({ message : "User token required" });
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.sendStatus(403).json({ message : "Invalid or expired token" });
+        }
+        req.user = user; 
+        next(); 
+    });
+}
+
+app.get('/me', (req, res) => {
+
+
+})
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
